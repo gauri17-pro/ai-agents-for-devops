@@ -2,3 +2,4 @@ strands-agents
 strands-agents-tools
 strands-agents[ollama]
 boto3
+streamlit
