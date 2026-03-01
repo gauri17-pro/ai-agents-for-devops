@@ -1,0 +1,18 @@
+# docker-compose.yml
+services:
+  app:
+    build: .
+    container_name: agent-app
+    restart: always
+    expose:
+      - "8501"          # only exposed internally, not to internet
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
