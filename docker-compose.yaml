@@ -11,7 +11,6 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_DEFAULT_REGION: ap-south-1
-      OPENAI_API_KEY: ${GROQ_API_KEY}
 
   nginx:
     image: nginx:alpine
