@@ -135,6 +135,7 @@ html, body, [class*="css"] {
 }
 .chip-on   { background: rgba(0,229,160,0.1);  color: var(--accent); border: 1px solid rgba(0,229,160,0.3); }
 .chip-off  { background: rgba(248,113,113,0.1); color: var(--danger); border: 1px solid rgba(248,113,113,0.3); }
+.chip-warn { background: rgba(255,107,53,0.1);  color: var(--orange); border: 1px solid rgba(255,107,53,0.3); }
 .chip-info { background: rgba(91,156,246,0.1);  color: var(--blue);   border: 1px solid rgba(91,156,246,0.3); }
 
 .bubble {
@@ -179,6 +180,18 @@ html, body, [class*="css"] {
 .metric-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; }
 .metric-val { font-family: var(--mono); font-size: 1.4rem; font-weight: 700; color: var(--accent); line-height: 1; margin-bottom: 4px; }
 .metric-lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.env-banner {
+    background: rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--orange);
+    margin-bottom: 16px;
+    line-height: 1.6;
+}
 
 hr { border-color: var(--border) !important; }
 
@@ -226,6 +239,12 @@ def _ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
 
+def _get_groq_api_key() -> str:
+    """Read Groq API key from environment variable GROQ_API_KEY."""
+    key = os.environ.get("GROQ_API_KEY", "").strip()
+    return key
+
+
 def _extract_agent_text(result: Any) -> str:
     if result is None:
         return "Done."
@@ -258,13 +277,28 @@ def _extract_tool_result(result: Any) -> str:
 # ── _build_agent uses OpenAIModel + Groq ──────────────────────────────────────
 def _build_agent(
     model_id: str,
-    region: str,       # ← api_key param removed
+    region: str,
     ami: str,
     itype: str,
     iname: str,
 ) -> Any:
     from strands import Agent, tool
     from strands.models.openai import OpenAIModel
+
+    # Read API key from environment — never from user input
+    api_key = _get_groq_api_key()
+    if not api_key:
+        raise EnvironmentError(
+            "GROQ_API_KEY environment variable is not set. "
+            "Please set it before starting the app:\n"
+            "  export GROQ_API_KEY=gsk_your_full_key_here"
+        )
+
+    # strands' OpenAIModel internally initialises the openai client which
+    # reads OPENAI_API_KEY from the environment regardless of the api_key
+    # kwarg. Mirror our Groq key into that variable so the client is happy.
+    os.environ["OPENAI_API_KEY"] = api_key
+    os.environ["OPENAI_BASE_URL"] = "https://api.groq.com/openai/v1"
 
     _region = region
     _ami    = ami
@@ -305,7 +339,7 @@ def _build_agent(
 
     mdl = OpenAIModel(
         model_id=model_id,
-        api_key=os.environ.get("GROQ_API_KEY"),   # ← read from environment variable
+        api_key=api_key,
         base_url="https://api.groq.com/openai/v1",
     )
 
@@ -326,7 +360,23 @@ with st.sidebar:
     st.markdown("## ⚙ Config")
     st.divider()
 
-    # ── API key input removed ─────────────────────────────────────────────────
+    # Show API key status (from env) — no user input needed
+    groq_key_present = bool(_get_groq_api_key())
+    if groq_key_present:
+        st.markdown(
+            '<div style="background:rgba(0,229,160,0.08);border:1px solid '
+            'rgba(0,229,160,0.3);border-radius:6px;padding:8px 12px;'
+            'font-family:\'JetBrains Mono\',monospace;font-size:0.75rem;'
+            'color:#00e5a0;margin-bottom:12px;">● GROQ_API_KEY detected</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="env-banner">⚠ GROQ_API_KEY not set<br>'
+            'Run: export GROQ_API_KEY=gsk_…</div>',
+            unsafe_allow_html=True,
+        )
+
     model_id = st.text_input(
         "Model ID",
         value="openai/gpt-oss-120b",
@@ -343,11 +393,12 @@ with st.sidebar:
 
     st.divider()
 
-    if st.button("🔌  Initialise Agent"):
+    init_disabled = not groq_key_present
+    if st.button("🔌  Initialise Agent", disabled=init_disabled):
         with st.spinner("Connecting…"):
             try:
                 st.session_state.agent = _build_agent(
-                    model_id, region_opt,  # ← api_key removed
+                    model_id, region_opt,
                     ami_id, inst_type, inst_name,
                 )
                 st.session_state.agent_ready = True
@@ -406,6 +457,21 @@ if st.session_state.agent_ready:
         f'<span class="chip chip-info">◈ {st.session_state.model_label}</span>'
         f'<span class="chip chip-info">⬡ groq.com</span>'
         f'</div>',
+        unsafe_allow_html=True,
+    )
+elif not groq_key_present:
+    st.markdown(
+        '<div class="status-bar">'
+        '<span class="chip chip-warn">⚠ GROQ_API_KEY not set — see sidebar</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="env-banner">'
+        'Set your Groq API key before starting:<br><br>'
+        '<code>export GROQ_API_KEY=gsk_your_full_key_here</code><br><br>'
+        'Then restart the app: <code>streamlit run app.py</code>'
+        '</div>',
         unsafe_allow_html=True,
     )
 else:
