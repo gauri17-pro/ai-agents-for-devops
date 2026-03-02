@@ -302,8 +302,6 @@ def _build_agent(
             })
         except Exception as exc:
             return json.dumps({"status": "error", "message": str(exc)})
-        
-    os.environ["OPENAI_API_KEY"] = os.environ.get("GROQ_API_KEY", "") 
 
     mdl = OpenAIModel(
         model_id=model_id,
