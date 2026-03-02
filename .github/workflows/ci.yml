@@ -26,6 +26,10 @@ jobs:
           docker compose down --remove-orphans || true
           docker compose up -d
 
+      - name: Verify env inside container
+        run: |
+            docker exec agent-app env | grep GROQ_API_KEY
+
       # ── 9. Verify containers are running ───────────────────────────────────
       - name: Verify deployment
         run: |
