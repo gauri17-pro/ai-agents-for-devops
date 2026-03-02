@@ -13,6 +13,15 @@ import sys
 from datetime import datetime
 from typing import Any
 
+# ── Bootstrap: set OpenAI env vars BEFORE strands/openai are imported ────────
+# strands initialises the openai client at import time and reads OPENAI_API_KEY
+# and OPENAI_BASE_URL from the environment at that moment. Setting them later
+# inside a function is too late — the client is already frozen.
+_groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+if _groq_key:
+    os.environ["OPENAI_API_KEY"]  = _groq_key
+    os.environ["OPENAI_BASE_URL"] = "https://api.groq.com/openai/v1"
+
 import boto3
 import streamlit as st
 
@@ -295,8 +304,8 @@ def _build_agent(
         )
 
     # strands' OpenAIModel internally initialises the openai client which
-    # reads OPENAI_API_KEY from the environment regardless of the api_key
-    # kwarg. Mirror our Groq key into that variable so the client is happy.
+    # reads OPENAI_API_KEY and OPENAI_BASE_URL from the environment,
+    # ignoring the kwargs we pass. Set both so requests route to Groq.
     os.environ["OPENAI_API_KEY"] = api_key
     os.environ["OPENAI_BASE_URL"] = "https://api.groq.com/openai/v1"
 
