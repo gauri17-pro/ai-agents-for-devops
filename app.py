@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import io
+import os
 import sys
 from datetime import datetime
 from typing import Any
@@ -254,16 +255,16 @@ def _extract_tool_result(result: Any) -> str:
     return ""
 
 
+# ── _build_agent uses OpenAIModel + Groq ──────────────────────────────────────
 def _build_agent(
     model_id: str,
-    host: str,
-    region: str,
+    region: str,       # ← api_key param removed
     ami: str,
     itype: str,
     iname: str,
 ) -> Any:
     from strands import Agent, tool
-    from strands.models.ollama import OllamaModel
+    from strands.models.openai import OpenAIModel
 
     _region = region
     _ami    = ami
@@ -302,7 +303,12 @@ def _build_agent(
         except Exception as exc:
             return json.dumps({"status": "error", "message": str(exc)})
 
-    mdl = OllamaModel(model_id=model_id, host=host)
+    mdl = OpenAIModel(
+        model_id=model_id,
+        api_key=os.environ.get("GROQ_API_KEY"),   # ← read from environment variable
+        base_url="https://api.groq.com/openai/v1",
+    )
+
     return Agent(
         model=mdl,
         tools=[create_ec2_instance],
@@ -320,9 +326,12 @@ with st.sidebar:
     st.markdown("## ⚙ Config")
     st.divider()
 
-    ollama_host = st.text_input("Ollama Host", value="http://localhost:11434")
-    model_id    = st.text_input("Model ID", value="gpt-oss:120b-cloud",
-                                help="Must match `ollama list`")
+    # ── API key input removed ─────────────────────────────────────────────────
+    model_id = st.text_input(
+        "Model ID",
+        value="openai/gpt-oss-120b",
+        help="Groq model identifier",
+    )
 
     st.markdown("**EC2 Defaults**")
     region_opt = st.selectbox("Region",
@@ -338,7 +347,7 @@ with st.sidebar:
         with st.spinner("Connecting…"):
             try:
                 st.session_state.agent = _build_agent(
-                    model_id, ollama_host, region_opt,
+                    model_id, region_opt,  # ← api_key removed
                     ami_id, inst_type, inst_name,
                 )
                 st.session_state.agent_ready = True
@@ -386,7 +395,7 @@ st.markdown("""
 <div class="hero">
     <div class="hero-eyebrow">◈ Strands Agent Interface</div>
     <h1>⚡ AWS EC2 Agent</h1>
-    <p>Conversational AWS automation — powered by your local Ollama model</p>
+    <p>Conversational AWS automation — powered by openai/gpt-oss-120b via Groq</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -395,7 +404,7 @@ if st.session_state.agent_ready:
         f'<div class="status-bar">'
         f'<span class="chip chip-on">● Agent Online</span>'
         f'<span class="chip chip-info">◈ {st.session_state.model_label}</span>'
-        f'<span class="chip chip-info">⬡ {ollama_host}</span>'
+        f'<span class="chip chip-info">⬡ groq.com</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -497,7 +506,6 @@ if send and user_input and user_input.strip():
         if result is not None:
             agent_text  = _extract_agent_text(result)
             tool_result = _extract_tool_result(result)
-            # Update metrics safely after agent call returns (never inside the tool)
             if tool_result:
                 try:
                     _data = json.loads(tool_result)
