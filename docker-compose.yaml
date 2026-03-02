@@ -6,8 +6,8 @@ services:
     restart: always
     expose:
       - "8501"          # only exposed internally, not to internet
-    env_file:
-      - .env
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
 
   nginx:
     image: nginx:alpine
