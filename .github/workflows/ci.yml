@@ -16,8 +16,17 @@ jobs:
         uses: actions/checkout@v3
 
       # ── 2. Set up Docker Buildx ────────────────────────────────────────────
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Install Docker
+        run: |
+          if ! command -v docker &> /dev/null; then
+            curl -fsSL https://get.docker.com | sh
+            sudo usermod -aG docker $USER
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo systemctl status docker
+          else
+            echo "Docker already installed, skipping"
+          fi
 
       - name: Docker Compose Up
         env:
