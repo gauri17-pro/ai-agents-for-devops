@@ -34,16 +34,16 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          sudo docker compose down --remove-orphans || true
-          sudo docker compose up -d --build
+          docker compose down --remove-orphans || true
+          docker compose up -d --build
 
       # ── 4. Verify env inside container ────────────────────────────────────
       - name: Verify env inside container
         run: |
-          sudo docker exec agent-app env | grep GROQ_API_KEY
+          docker exec agent-app env | grep GROQ_API_KEY
 
       # ── 5. Verify containers are running ──────────────────────────────────
       - name: Verify deployment
         run: |
-          sudo docker compose ps
+          docker compose ps
           echo "App running at http://localhost:80"
