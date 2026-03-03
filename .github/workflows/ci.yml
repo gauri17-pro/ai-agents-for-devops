@@ -1,4 +1,4 @@
-name: Build and Deploy EC2 Agent
+name: Build and Deploy AI Agent on EC2
 
 on:
   push:
